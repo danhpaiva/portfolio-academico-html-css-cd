@@ -1,10 +1,13 @@
-name: Deploy Static Content to Pages
+name: CI/CD Pipeline - Web App
 
 on:
     push:
         branches: ["main"]
+    pull_request:
+        branches: ["main"] # A etapa de CI roda também em Pull Requests para validar o código antes de entrar na main!
     workflow_dispatch:
 
+# Permissões necessárias para interagir com o GitHub Pages
 permissions:
     contents: read
     pages: write
@@ -15,11 +18,47 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    deploy:
+    # ==========================================
+    # ETAPA 1: INTEGRAÇÃO CONTÍNUA (CI)
+    # ==========================================
+    ci:
+        name: Continuous Integration
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout do Código
+              uses: actions/checkout@v4
+
+            - name: Configurar Node.js (Ambiente para ferramentas de qualidade)
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+
+            # Exemplo de CI: Instalar dependências de linting ou testes (se houver package.json)
+            # Se for um projeto puramente estático sem package.json, você pode validar HTML/CSS com linters:
+            - name: Validar HTML (HTMLHint) ou Linting de Código
+              run: |
+                  echo "Executando validações estáticas e linters..."
+                  # Exemplo simulado: npx htmlhint '**/*.html'
+                  # Exemplo simulado: npx stylelint '**/*.css'
+                  echo "Código validado com sucesso!"
+
+            # Exemplo de execução de testes automatizados (se existissem)
+            - name: Executar Testes Unitários
+              run: |
+                  echo "Rodando suíte de testes..."
+                  # npm test
+
+    # ==========================================
+    # ETAPA 2: ENTREGA CONTÍNUA / DEPLOY (CD)
+    # ==========================================
+    cd:
+        name: Continuous Deployment
+        needs: ci # O CD só roda SE a etapa de CI passar com sucesso!
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' # O deploy só acontece na branch main por push
+        runs-on: ubuntu-latest
         environment:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
-        runs-on: ubuntu-latest
         steps:
             - name: Checkout do Código
               uses: actions/checkout@v4
@@ -30,7 +69,7 @@ jobs:
             - name: Enviar artefato para o Pages
               uses: actions/upload-pages-artifact@v3
               with:
-                  path: "."
+                  path: "." # Caminho dos arquivos prontos para produção
 
             - name: Executar o Deploy
               id: deployment
